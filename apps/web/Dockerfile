@@ -9,9 +9,20 @@ COPY tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts index.htm
 COPY src ./src
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.31.3-alpine3.24
+FROM node:22-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+WORKDIR /app
 
-EXPOSE 8080
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+EXPOSE 3000
+
+USER node
+
+CMD ["npm", "start"]

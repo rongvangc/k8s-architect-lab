@@ -9,10 +9,10 @@ COPY --chown=bun:bun tsconfig.json ./
 COPY --chown=bun:bun src ./src
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=4000
 ENV BUN_INSTALL=/tmp/bun
 
-EXPOSE 3000
+EXPOSE 4000
 
 USER bun
 

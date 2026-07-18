@@ -9,7 +9,7 @@ import { restaurantRoutes } from "./routes/restaurants";
 import { menuItemRoutes } from "./routes/menu-items";
 import { orderRoutes } from "./routes/orders";
 
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.PORT || 4000);
 const serviceName = process.env.SERVICE_NAME || "architect-lab-api";
 const environment = process.env.APP_ENV || "prod";
 

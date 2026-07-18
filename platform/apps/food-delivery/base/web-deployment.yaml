@@ -28,7 +28,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 3000
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -54,16 +54,8 @@ spec:
               cpu: 250m
               memory: 256Mi
           volumeMounts:
-            - name: cache
-              mountPath: /var/cache/nginx
-            - name: run
-              mountPath: /var/run
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: cache
-          emptyDir: {}
-        - name: run
-          emptyDir: {}
         - name: tmp
           emptyDir: {}

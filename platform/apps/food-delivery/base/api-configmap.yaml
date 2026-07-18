@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: api-config
 data:
-  PORT: "3000"
+  PORT: "4000"
   APP_ENV: prod
   SERVICE_NAME: food-delivery-api
   DATABASE_HOST: postgres
