@@ -1,0 +1,30 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: food-delivery-dev
+  namespace: argocd
+spec:
+  commonUpdateSettings:
+    updateStrategy: newest-build
+    allowTags: regexp:^sha-[0-9a-f]{40}$
+    pullSecret: secret:argocd/argocd-image-updater-ghcr-creds#creds
+    platforms:
+      - linux/amd64
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-git-creds
+    gitConfig:
+      branch: main
+      writeBackTarget: kustomization
+  applicationRefs:
+    - namePattern: food-delivery-dev
+      images:
+        - alias: api
+          imageName: ghcr.io/rongvangc/food-delivery-api:dev
+          manifestTargets:
+            kustomize:
+              name: ghcr.io/example/food-delivery-api
+        - alias: web
+          imageName: ghcr.io/rongvangc/food-delivery-web:dev
+          manifestTargets:
+            kustomize:
+              name: ghcr.io/example/food-delivery-web

@@ -12,6 +12,8 @@ spec:
     - https://traefik.github.io/charts
     - https://charts.jetstack.io
   destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
     - namespace: local-path-storage
       server: https://kubernetes.default.svc
     - namespace: traefik

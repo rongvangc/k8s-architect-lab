@@ -4,6 +4,8 @@ resources:
   - projects/default-project.yaml
   - projects/platform-project.yaml
   - projects/food-delivery-project.yaml
+  - applications/argocd-image-updater.yaml
+  - applications/food-delivery-image-updater.yaml
   - applications/gateway-api.yaml
   - applications/local-path.yaml
   - applications/metrics-server.yaml

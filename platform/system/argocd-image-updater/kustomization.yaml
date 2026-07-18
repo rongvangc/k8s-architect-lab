@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/v1.2.0/config/install.yaml
+patches:
+  - target:
+      kind: ConfigMap
+      name: argocd-image-updater-config
+    patch: |-
+      - op: add
+        path: /data
+        value:
+          log.level: info

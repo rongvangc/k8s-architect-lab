@@ -12,6 +12,8 @@ argocd_version: v3.4.5
 argocd_install_sha256: cdf6758b489d25641c2a1fd835642543aaa64fe530867d0136a83ddf3dafe456
 gitops_bootstrap_enabled: true
 argocd_expose_nodeport: true
+argocd_image_updater_enabled: true
+argocd_image_updater_git_username: rongvangc
 
 # Repository used by the DEV Argo CD root Application.
 git_repo_url: https://github.com/rongvangc/k8s-architect-lab.git

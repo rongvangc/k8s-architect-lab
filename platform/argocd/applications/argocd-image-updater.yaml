@@ -1,16 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: k8s-architect-lab-root
+  name: argocd-image-updater
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "-30"
 spec:
-  project: platform-bootstrap
+  project: platform
   source:
-    repoURL: REPLACE_WITH_REPO_URL
+    repoURL: https://github.com/rongvangc/k8s-architect-lab.git
     targetRevision: main
-    path: platform/argocd
+    path: platform/system/argocd-image-updater
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -19,6 +19,13 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
+      - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
       - ApplyOutOfSyncOnly=true
       - PruneLast=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

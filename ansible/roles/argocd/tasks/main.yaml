@@ -27,6 +27,60 @@
   register: argocd_namespace_apply
   changed_when: "'created' in argocd_namespace_apply.stdout or 'configured' in argocd_namespace_apply.stdout"
 
+- name: Assert Argo CD Image Updater GitHub token is provided
+  ansible.builtin.assert:
+    that:
+      - vault_github_token is defined
+      - vault_github_token | length >= 20
+      - vault_github_token != "REPLACE_WITH_GITHUB_TOKEN"
+      - argocd_image_updater_git_username is defined
+      - argocd_image_updater_git_username != "REPLACE_WITH_GITHUB_USER"
+    fail_msg: >-
+      Define vault_github_token and argocd_image_updater_git_username before
+      enabling Argo CD Image Updater. The token needs repo write access and
+      package read access for GHCR.
+  when: argocd_image_updater_enabled | default(false) | bool
+  no_log: true
+
+- name: Apply Argo CD Image Updater Git credentials
+  ansible.builtin.command:
+    cmd: kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-image-updater-git-creds
+        namespace: argocd
+      type: Opaque
+      stringData:
+        username: {{ argocd_image_updater_git_username }}
+        password: {{ vault_github_token }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: image_updater_git_creds_apply
+  changed_when: "'created' in image_updater_git_creds_apply.stdout or 'configured' in image_updater_git_creds_apply.stdout"
+  when: argocd_image_updater_enabled | default(false) | bool
+  no_log: true
+
+- name: Apply Argo CD Image Updater GHCR credentials
+  ansible.builtin.command:
+    cmd: kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-image-updater-ghcr-creds
+        namespace: argocd
+      type: Opaque
+      stringData:
+        creds: {{ argocd_image_updater_git_username }}:{{ vault_github_token }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: image_updater_ghcr_creds_apply
+  changed_when: "'created' in image_updater_ghcr_creds_apply.stdout or 'configured' in image_updater_ghcr_creds_apply.stdout"
+  when: argocd_image_updater_enabled | default(false) | bool
+  no_log: true
+
 - name: Install Argo CD
   ansible.builtin.command:
     cmd: kubectl apply --server-side=true -n argocd -f /etc/kubernetes/argocd-install.yaml
