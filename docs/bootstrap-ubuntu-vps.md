@@ -247,11 +247,22 @@ Edit the value when Ansible Vault opens the file:
 
 ```yaml
 vault_postgres_password: use-a-long-random-password-here
+vault_github_token: github_pat_or_fine_grained_token_here
 ```
 
 `vault.yaml` and `.vault-password` are ignored by Git. For a team workflow, an
 encrypted Vault file may be committed, but its vault password must remain in a
 password manager or CI secret store.
+
+`vault_github_token` is used by Argo CD Image Updater. For this lab it needs
+write access to `rongvangc/k8s-architect-lab` and read access to GHCR packages.
+The token is not stored in Kubernetes YAML. Ansible creates these runtime
+Secrets in the `argocd` namespace:
+
+```text
+argocd-image-updater-git-creds  -> Git write-back
+argocd-image-updater-ghcr-creds -> GHCR tag discovery
+```
 
 ## 5. Verify inventory and connectivity
 
@@ -326,9 +337,10 @@ kubectl get tigerastatus
 kubectl get applications -n argocd
 kubectl get storageclass
 kubectl get gatewayclass
-kubectl get gateway,httproute -n apps-prod
-kubectl get pvc,pods -n apps-prod
-kubectl get networkpolicy -n apps-prod
+kubectl get imageupdaters -n argocd
+kubectl get gateway,httproute -n apps-dev
+kubectl get pvc,pods -n apps-dev
+kubectl get networkpolicy -n apps-dev
 kubectl top nodes
 ```
 

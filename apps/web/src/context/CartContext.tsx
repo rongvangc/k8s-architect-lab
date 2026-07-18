@@ -22,19 +22,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = useCallback(
     (menuItem: MenuItem, name: string) => {
-      setCart((prev) => {
-        if (restaurantId !== null && restaurantId !== menuItem.restaurantId) {
-          if (confirm(`Your cart has items from ${restaurantName}. Clear and add from ${name}?`)) {
-            setRestaurantId(menuItem.restaurantId);
-            setRestaurantName(name);
-            return [{ menuItem, quantity: 1 }];
-          }
-          return prev;
-        }
-        if (restaurantId === null) {
+      if (restaurantId !== null && restaurantId !== menuItem.restaurantId) {
+        if (confirm(`Your cart has items from ${restaurantName}. Clear and add from ${name}?`)) {
           setRestaurantId(menuItem.restaurantId);
           setRestaurantName(name);
+          setCart([{ menuItem, quantity: 1 }]);
+          return;
         }
+        return;
+      }
+
+      if (restaurantId === null) {
+        setRestaurantId(menuItem.restaurantId);
+        setRestaurantName(name);
+      }
+
+      setCart((prev) => {
         const existing = prev.find((item) => item.menuItem.id === menuItem.id);
         if (existing) {
           return prev.map((item) =>

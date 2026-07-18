@@ -3,7 +3,6 @@ import { db, pool } from "../db";
 import { orders, orderItems, menuItems, restaurants } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 
-const VALID_STATUSES = ["pending", "confirmed", "preparing", "delivering", "delivered", "cancelled"] as const;
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ["confirmed", "cancelled"],
   confirmed: ["preparing"],
@@ -27,26 +26,14 @@ export const orderRoutes = new Elysia()
         return { error: "Order must have at least one item" };
       }
 
-      const menuItemIds = items.map((i) => i.menuItemId);
-      const menuRecords = await db
-        .select()
-        .from(menuItems)
-        .where(eq(menuItems.restaurantId, restaurantId));
-
-      const menuMap = new Map(menuRecords.map((m) => [m.id, m]));
-
       for (const item of items) {
-        const menu = menuMap.get(item.menuItemId);
-        if (!menu) {
+        if (item.quantity <= 0) {
           set.status = 400;
-          return { error: `Menu item ${item.menuItemId} not found in restaurant ${restaurantId}` };
+          return { error: "Item quantity must be greater than 0" };
         }
       }
 
-      const totalAmount = items.reduce((sum, item) => {
-        const menu = menuMap.get(item.menuItemId)!;
-        return sum + Number(menu.price) * item.quantity;
-      }, 0);
+      const menuRecordIds = items.map((i) => i.menuItemId);
 
       if (!pool) {
         set.status = 503;
@@ -56,6 +43,25 @@ export const orderRoutes = new Elysia()
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+
+        const menuResult = await client.query(
+          `SELECT id, price FROM menu_items WHERE id = ANY($1) AND restaurant_id = $2`,
+          [menuRecordIds, restaurantId]
+        );
+
+        const menuMap = new Map(menuResult.rows.map((m: { id: number; price: string }) => [m.id, m.price]));
+        const missingIds = menuRecordIds.filter((id) => !menuMap.has(id));
+
+        if (missingIds.length > 0) {
+          await client.query("ROLLBACK");
+          set.status = 400;
+          return { error: `Menu items not found in restaurant ${restaurantId}: ${missingIds.join(", ")}` };
+        }
+
+        const totalAmount = items.reduce((sum, item) => {
+          const price = Number(menuMap.get(item.menuItemId)!);
+          return sum + price * item.quantity;
+        }, 0);
 
         const orderResult = await client.query(
           `INSERT INTO orders (restaurant_id, customer_name, delivery_address, phone, status, total_amount)
@@ -68,12 +74,12 @@ export const orderRoutes = new Elysia()
 
         const insertedItems = [];
         for (const item of items) {
-          const menu = menuMap.get(item.menuItemId)!;
+          const price = menuMap.get(item.menuItemId)!;
           const itemResult = await client.query(
             `INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price)
              VALUES ($1, $2, $3, $4)
              RETURNING *`,
-            [order.id, item.menuItemId, item.quantity, menu.price]
+            [order.id, item.menuItemId, item.quantity, price]
           );
           insertedItems.push(itemResult.rows[0]);
         }
@@ -85,7 +91,11 @@ export const orderRoutes = new Elysia()
           items: insertedItems,
         };
       } catch (error) {
-        await client.query("ROLLBACK");
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // connection may be broken; ignore rollback failure
+        }
         throw error;
       } finally {
         client.release();

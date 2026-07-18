@@ -130,6 +130,23 @@ Ansible owns host/bootstrap configuration. Argo CD owns resources declared in
 Git after bootstrap, so application manifest updates need a Git push rather
 than another Ansible run.
 
+## Image update flow
+
+```text
+GitHub Actions builds images
+-> pushes :dev and :sha-<commit> tags to GHCR
+-> Argo CD Image Updater watches GHCR
+-> filters tags with ^sha-[0-9a-f]{40}$
+-> writes the newest sha tag into overlays/dev/kustomization.yaml
+-> commits the YAML change back to main
+-> Argo CD sees desired state changed
+-> Kubernetes rolls api/web to the new image tag
+```
+
+Argo CD still does not build images. GitHub Actions builds images; Image
+Updater turns the newest image into a Git change; Argo CD deploys that Git
+change.
+
 ## Secret flow
 
 ```text
@@ -139,6 +156,14 @@ Ansible Vault password
 -> application_secrets role creates Secret/database-credentials
 -> PostgreSQL reads POSTGRES_PASSWORD
 -> API reads DATABASE_PASSWORD
+```
+
+```text
+Ansible Vault password
+-> reads vault_github_token
+-> argocd role creates Image Updater Git/GHCR Secrets
+-> Image Updater reads GitHub/GHCR credentials at runtime
+-> Image Updater commits image tag changes back to Git
 ```
 
 The base PostgreSQL StatefulSet references `database-credentials` with

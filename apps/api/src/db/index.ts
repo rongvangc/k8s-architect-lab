@@ -1,6 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import { restaurants } from "./schema";
 
 const databaseHost = process.env.DATABASE_HOST;
 const databaseUser = process.env.POSTGRES_USER ?? process.env.DATABASE_USER;
