@@ -1,0 +1,13 @@
+---
+- name: Load Kubernetes kernel modules
+  ansible.builtin.command:
+    cmd: modprobe {{ item }}
+  loop:
+    - overlay
+    - br_netfilter
+  changed_when: false
+
+- name: Apply Kubernetes sysctl
+  ansible.builtin.command:
+    cmd: sysctl --system
+  changed_when: true

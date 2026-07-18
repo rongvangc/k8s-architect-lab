@@ -1,0 +1,10 @@
+all:
+  children:
+    kubernetes:
+      children:
+        control_plane:
+          hosts:
+            development-control-plane:
+              ansible_host: REPLACE_WITH_DEV_VPS_IP
+              ansible_user: root
+              node_ip: REPLACE_WITH_DEV_NODE_IP

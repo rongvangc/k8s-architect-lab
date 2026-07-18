@@ -1,0 +1,178 @@
+---
+- name: Assert this role targets a control-plane host
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname in groups["control_plane"]
+      - node_ip is defined
+    fail_msg: control_plane role requires membership in control_plane and node_ip.
+
+- name: Check whether the control plane is initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubernetes_admin_conf
+
+- name: Check whether the Pod CIDR overlaps an exact host route
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && ip -4 route | awk '{print $1}' | grep -Fx '{{ kubernetes_pod_cidr }}'"
+    executable: /bin/bash
+  register: pod_cidr_route
+  changed_when: false
+  failed_when: false
+  when: not kubernetes_admin_conf.stat.exists
+
+- name: Reject an overlapping Pod CIDR
+  ansible.builtin.assert:
+    that: pod_cidr_route.rc != 0
+    fail_msg: "Pod CIDR {{ kubernetes_pod_cidr }} overlaps an existing host route."
+  when: not kubernetes_admin_conf.stat.exists
+
+- name: Create Kubernetes configuration directory
+  ansible.builtin.file:
+    path: /etc/kubernetes
+    state: directory
+    mode: "0700"
+
+- name: Check Secret encryption configuration
+  ansible.builtin.stat:
+    path: /etc/kubernetes/encryption-config.yaml
+  register: encryption_config
+
+- name: Generate Secret encryption configuration once
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      umask 077
+      encryption_key="$(openssl rand -base64 32)"
+      cat > /etc/kubernetes/encryption-config.yaml <<EOF
+      apiVersion: apiserver.config.k8s.io/v1
+      kind: EncryptionConfiguration
+      resources:
+        - resources:
+            - secrets
+          providers:
+            - secretbox:
+                keys:
+                  - name: key1
+                    secret: ${encryption_key}
+            - identity: {}
+      EOF
+    executable: /bin/bash
+    creates: /etc/kubernetes/encryption-config.yaml
+  no_log: true
+
+- name: Protect Secret encryption configuration
+  ansible.builtin.file:
+    path: /etc/kubernetes/encryption-config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: encryption_config.stat.exists or not ansible_check_mode
+
+- name: Render kubeadm configuration
+  ansible.builtin.template:
+    src: kubeadm-config.yaml.j2
+    dest: /etc/kubernetes/kubeadm-config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Initialize Kubernetes control plane
+  ansible.builtin.command:
+    cmd: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+    creates: /etc/kubernetes/admin.conf
+  register: kubeadm_init
+
+- name: Create root kubeconfig directory
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: "0700"
+
+- name: Install root kubeconfig
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0600"
+  when: kubernetes_admin_conf.stat.exists or not ansible_check_mode
+
+- name: Download pinned Tigera Operator manifest
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml"
+    dest: /etc/kubernetes/tigera-operator.yaml
+    checksum: "sha256:{{ calico_operator_sha256 }}"
+    mode: "0644"
+
+- name: Apply Tigera Operator
+  ansible.builtin.command:
+    cmd: kubectl apply --server-side=true --force-conflicts -f /etc/kubernetes/tigera-operator.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: tigera_operator_apply
+  changed_when: "'created' in tigera_operator_apply.stdout or 'configured' in tigera_operator_apply.stdout"
+
+- name: Wait for Calico Installation CRD
+  ansible.builtin.command:
+    cmd: kubectl wait --for=condition=Established crd/installations.operator.tigera.io --timeout=120s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+  register: calico_installation_crd_wait
+  retries: 30
+  delay: 4
+  until: calico_installation_crd_wait.rc == 0
+
+- name: Render Calico custom resources
+  ansible.builtin.template:
+    src: calico-custom-resources.yaml.j2
+    dest: /etc/kubernetes/calico-custom-resources.yaml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Apply Calico custom resources
+  ansible.builtin.command:
+    cmd: kubectl apply -f /etc/kubernetes/calico-custom-resources.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: calico_resources_apply
+  changed_when: "'created' in calico_resources_apply.stdout or 'configured' in calico_resources_apply.stdout"
+
+- name: Allow workloads on the single control-plane node
+  ansible.builtin.command:
+    cmd: kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: control_plane_taint
+  changed_when: "'untainted' in control_plane_taint.stdout"
+  failed_when: control_plane_taint.rc != 0 and 'not found' not in control_plane_taint.stderr
+
+- name: Wait for Tigera Operator
+  ansible.builtin.command:
+    cmd: kubectl rollout status deployment/tigera-operator -n tigera-operator --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Wait for CoreDNS
+  ansible.builtin.command:
+    cmd: kubectl wait --for=condition=Available deployment/coredns -n kube-system --timeout=600s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Approve pending kubelet serving certificates
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      kubectl get csr -o jsonpath='{range .items[?(@.spec.signerName=="kubernetes.io/kubelet-serving")]}{.metadata.name}{"\n"}{end}' |
+      while read -r csr; do
+        [ -n "$csr" ] && kubectl certificate approve "$csr"
+      done
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: serving_csr_approval
+  changed_when: "'approved' in serving_csr_approval.stdout"

@@ -1,0 +1,47 @@
+---
+- name: Assert the application secret is provided through Ansible Vault
+  ansible.builtin.assert:
+    that:
+      - vault_postgres_password is defined
+      - vault_postgres_password | length >= 16
+      - vault_postgres_password != "REPLACE_WITH_A_STRONG_PASSWORD"
+    fail_msg: >-
+      Define a PostgreSQL password of at least 16 characters in
+      group_vars/all/vault.yaml, then encrypt that file before running site.yaml.
+  no_log: true
+
+- name: Apply application namespace
+  ansible.builtin.command:
+    cmd: kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: {{ application_namespace }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: application_namespace_apply
+  changed_when: "'created' in application_namespace_apply.stdout or 'configured' in application_namespace_apply.stdout"
+
+- name: Apply database credentials outside Git
+  ansible.builtin.command:
+    cmd: kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: database-credentials
+        namespace: {{ application_namespace }}
+      type: Opaque
+      stringData:
+        POSTGRES_USER: {{ postgres_user }}
+        POSTGRES_PASSWORD: {{ vault_postgres_password }}
+        POSTGRES_DB: {{ postgres_database }}
+        PGDATA: /var/lib/postgresql/data/pgdata
+        DATABASE_USER: {{ postgres_user }}
+        DATABASE_PASSWORD: {{ vault_postgres_password }}
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: database_secret_apply
+  changed_when: "'created' in database_secret_apply.stdout or 'configured' in database_secret_apply.stdout"
+  no_log: true

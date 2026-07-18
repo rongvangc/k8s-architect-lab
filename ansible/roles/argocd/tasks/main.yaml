@@ -1,0 +1,70 @@
+---
+- name: Assert GitOps repository URL is configured
+  ansible.builtin.assert:
+    that:
+      - git_repo_url != "REPLACE_WITH_REPO_URL"
+      - git_repo_url is match('^https://')
+    fail_msg: Set git_repo_url and platform/argocd/repository-config.yaml to the pushed repository URL.
+  when: gitops_bootstrap_enabled | bool
+
+- name: Download pinned Argo CD installation manifest
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml"
+    dest: /etc/kubernetes/argocd-install.yaml
+    checksum: "sha256:{{ argocd_install_sha256 }}"
+    mode: "0644"
+
+- name: Apply Argo CD namespace
+  ansible.builtin.command:
+    cmd: kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: argocd
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: argocd_namespace_apply
+  changed_when: "'created' in argocd_namespace_apply.stdout or 'configured' in argocd_namespace_apply.stdout"
+
+- name: Install Argo CD
+  ansible.builtin.command:
+    cmd: kubectl apply --server-side=true -n argocd -f /etc/kubernetes/argocd-install.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: argocd_apply
+  changed_when: "'created' in argocd_apply.stdout or 'configured' in argocd_apply.stdout"
+
+- name: Wait for Argo CD server
+  ansible.builtin.command:
+    cmd: kubectl rollout status deployment/argocd-server -n argocd --timeout=600s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Wait for Argo CD application controller
+  ansible.builtin.command:
+    cmd: kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=600s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Apply restricted bootstrap AppProject
+  ansible.builtin.command:
+    cmd: kubectl apply -f -
+    stdin: "{{ lookup('ansible.builtin.file', playbook_dir + '/../../platform/bootstrap/platform-bootstrap-project.yaml') | replace('REPLACE_WITH_REPO_URL', git_repo_url) }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: bootstrap_project_apply
+  changed_when: "'created' in bootstrap_project_apply.stdout or 'configured' in bootstrap_project_apply.stdout"
+  when: gitops_bootstrap_enabled | bool
+
+- name: Apply root Argo CD Application
+  ansible.builtin.command:
+    cmd: kubectl apply -f -
+    stdin: "{{ lookup('ansible.builtin.file', playbook_dir + '/../../platform/bootstrap/root-application.yaml') | replace('REPLACE_WITH_REPO_URL', git_repo_url) }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: root_application_apply
+  changed_when: "'created' in root_application_apply.stdout or 'configured' in root_application_apply.stdout"
+  when: gitops_bootstrap_enabled | bool

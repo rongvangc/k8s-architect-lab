@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform-bootstrap
+  namespace: argocd
+spec:
+  sourceRepos:
+    - REPLACE_WITH_REPO_URL
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: argoproj.io
+      kind: Application
+    - group: argoproj.io
+      kind: AppProject

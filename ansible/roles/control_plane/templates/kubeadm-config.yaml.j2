@@ -1,0 +1,35 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: {{ node_ip }}
+  bindPort: 6443
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  kubeletExtraArgs:
+    - name: node-ip
+      value: {{ node_ip }}
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+controlPlaneEndpoint: "{{ kubernetes_api_endpoint }}:6443"
+networking:
+  podSubnet: {{ kubernetes_pod_cidr }}
+  serviceSubnet: {{ kubernetes_service_cidr }}
+apiServer:
+  certSANs:
+    - "{{ kubernetes_api_endpoint }}"
+    - "{{ node_ip }}"
+  extraArgs:
+    - name: encryption-provider-config
+      value: /etc/kubernetes/encryption-config.yaml
+  extraVolumes:
+    - name: encryption-config
+      hostPath: /etc/kubernetes/encryption-config.yaml
+      mountPath: /etc/kubernetes/encryption-config.yaml
+      readOnly: true
+      pathType: File
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd
+serverTLSBootstrap: true
