@@ -15,6 +15,20 @@ patches:
       - op: replace
         path: /data/DATABASE_NAME
         value: architect_lab_dev
+  - target:
+      kind: Deployment
+      name: api
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: web
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
 images:
   - name: ghcr.io/example/food-delivery-api
     newName: ghcr.io/rongvangc/food-delivery-api
