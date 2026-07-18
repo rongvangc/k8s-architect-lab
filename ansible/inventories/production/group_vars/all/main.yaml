@@ -9,6 +9,7 @@ calico_operator_sha256: f18e073794207d372606bc3ea6f8fd73972f86d6828f4ba666dfe0d4
 argocd_version: v3.4.5
 argocd_install_sha256: cdf6758b489d25641c2a1fd835642543aaa64fe530867d0136a83ddf3dafe456
 gitops_bootstrap_enabled: true
+argocd_expose_nodeport: true
 git_repo_url: REPLACE_WITH_REPO_URL
 application_namespace: apps-dev
 postgres_user: architect_dev

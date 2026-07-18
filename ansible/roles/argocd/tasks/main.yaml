@@ -49,6 +49,15 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: false
 
+- name: Expose Argo CD through a NodePort for temporary VPS access
+  ansible.builtin.command:
+    cmd: kubectl patch service argocd-server -n argocd --type=merge -p '{"spec":{"type":"NodePort"}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: argocd_nodeport_apply
+  changed_when: "'patched' in argocd_nodeport_apply.stdout"
+  when: argocd_expose_nodeport | bool
+
 - name: Apply restricted bootstrap AppProject
   ansible.builtin.command:
     cmd: kubectl apply -f -
