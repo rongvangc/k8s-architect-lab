@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: architect-lab-repository
-  namespace: argocd
-data:
-  repoURL: https://github.com/rongvangc/k8s-architect-lab.git

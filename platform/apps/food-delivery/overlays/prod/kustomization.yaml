@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: apps-prod
+resources:
+  - ../../base
+  - namespace.yaml
+images:
+  - name: ghcr.io/example/food-delivery-api
+    newName: ghcr.io/REPLACE_WITH_GITHUB_USER/food-delivery-api
+    newTag: "0.1.0"
+  - name: ghcr.io/example/food-delivery-web
+    newName: ghcr.io/REPLACE_WITH_GITHUB_USER/food-delivery-web
+    newTag: "0.1.0"

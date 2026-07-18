@@ -5,12 +5,10 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-100"
-  labels:
-    architect-lab.io/source: self
 spec:
   description: Cluster platform controllers and CRDs.
   sourceRepos:
-    - REPLACE_WITH_REPO_URL
+    - https://github.com/rongvangc/k8s-architect-lab.git
     - https://traefik.github.io/charts
     - https://charts.jetstack.io
   destinations:

@@ -4,7 +4,7 @@
     that:
       - git_repo_url != "REPLACE_WITH_REPO_URL"
       - git_repo_url is match('^https://')
-    fail_msg: Set git_repo_url and platform/argocd/repository-config.yaml to the pushed repository URL.
+    fail_msg: Set git_repo_url to the pushed repository URL before enabling GitOps bootstrap.
   when: gitops_bootstrap_enabled | bool
 
 - name: Download pinned Argo CD installation manifest

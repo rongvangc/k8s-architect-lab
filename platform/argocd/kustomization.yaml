@@ -1,29 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - repository-config.yaml
   - projects/default-project.yaml
   - projects/platform-project.yaml
-  - projects/k8s-architect-lab-project.yaml
+  - projects/food-delivery-project.yaml
   - applications/gateway-api.yaml
   - applications/local-path.yaml
   - applications/metrics-server.yaml
   - applications/cert-manager.yaml
   - applications/traefik.yaml
-  - applications/demo-stack-dev.yaml
-replacements:
-  - source:
-      kind: ConfigMap
-      name: architect-lab-repository
-      fieldPath: data.repoURL
-    targets:
-      - select:
-          kind: Application
-          labelSelector: architect-lab.io/source=self
-        fieldPaths:
-          - spec.source.repoURL
-      - select:
-          kind: AppProject
-          labelSelector: architect-lab.io/source=self
-        fieldPaths:
-          - spec.sourceRepos.0
+  - applications/food-delivery-dev.yaml

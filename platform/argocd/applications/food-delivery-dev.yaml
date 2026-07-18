@@ -1,24 +1,31 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: local-path-provisioner
+  name: food-delivery-dev
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-50"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
-  project: platform
+  project: food-delivery
   source:
     repoURL: https://github.com/rongvangc/k8s-architect-lab.git
     targetRevision: main
-    path: platform/system/local-path
+    path: platform/apps/food-delivery/overlays/dev
   destination:
     server: https://kubernetes.default.svc
-    namespace: local-path-storage
+    namespace: apps-dev
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
       - ApplyOutOfSyncOnly=true
       - PruneLast=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

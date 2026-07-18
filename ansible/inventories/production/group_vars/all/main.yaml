@@ -11,6 +11,6 @@ argocd_install_sha256: cdf6758b489d25641c2a1fd835642543aaa64fe530867d0136a83ddf3
 gitops_bootstrap_enabled: true
 argocd_expose_nodeport: true
 git_repo_url: REPLACE_WITH_REPO_URL
-application_namespace: apps-dev
-postgres_user: architect_dev
-postgres_database: architect_lab_dev
+application_namespace: apps-prod
+postgres_user: architect_prod
+postgres_database: architect_lab_prod

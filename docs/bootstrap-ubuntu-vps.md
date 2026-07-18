@@ -210,19 +210,15 @@ Edit the inventory files before the first run:
 ```text
 ansible/inventories/<environment>/hosts.yaml
 ansible/inventories/<environment>/group_vars/all/main.yaml
-platform/argocd/repository-config.yaml
-platform/apps/demo-stack/overlays/prod/kustomization.yaml
+platform/apps/food-delivery/overlays/prod/kustomization.yaml
 ```
 
 For a development cluster, edit the development inventory and
-`platform/apps/demo-stack/overlays/dev/kustomization.yaml` instead. Do not put a
+`platform/apps/food-delivery/overlays/dev/kustomization.yaml` instead. Do not put a
 development VPS address in the production inventory.
 
-DEV currently sets `gitops_bootstrap_enabled: false`. In this mode Ansible
-installs Argo CD, but skips the bootstrap AppProject and root Application, so a
-GitHub repository is not required for the first cluster setup.
-
-After the repository has been pushed, enable GitOps:
+DEV currently enables GitOps bootstrap, so `git_repo_url` must point to the
+pushed repository before running `site.yaml`:
 
 ```yaml
 # ansible/inventories/development/group_vars/all/main.yaml
@@ -230,13 +226,9 @@ gitops_bootstrap_enabled: true
 git_repo_url: https://github.com/YOUR_USER/k8s-architect-lab.git
 ```
 
-Set the same pushed Git URL in `platform/argocd/repository-config.yaml`:
-
-```yaml
-# platform/argocd/repository-config.yaml
-data:
-  repoURL: https://github.com/YOUR_USER/k8s-architect-lab.git
-```
+The Argo CD `Application` manifests under `platform/argocd/applications/` also
+use this repository URL directly. Keep them in sync when you fork or rename the
+GitHub repository.
 
 Replace `REPLACE_WITH_GITHUB_USER` in the production Kustomize overlay with the
 registry owner that contains the built API and web images. Commit and push these

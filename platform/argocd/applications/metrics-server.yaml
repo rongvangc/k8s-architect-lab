@@ -5,12 +5,10 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-40"
-  labels:
-    architect-lab.io/source: self
 spec:
   project: platform
   source:
-    repoURL: REPLACE_WITH_REPO_URL
+    repoURL: https://github.com/rongvangc/k8s-architect-lab.git
     targetRevision: main
     path: platform/system/metrics-server
   destination:
